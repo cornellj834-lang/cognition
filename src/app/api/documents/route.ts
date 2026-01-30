@@ -14,7 +14,7 @@ export async function GET() {
     const files = fs.readdirSync(DOCS_DIRECTORY);
     
     // Filter for markdown files only
-    const markdownFiles = files.filter(file => file.endsWith('.md'));
+    const markdownFiles = files.filter(file => file.toLowerCase().endsWith('.md'));
     
     // Map files to a format with id, title, and path
     const documents = markdownFiles.map(file => {
