@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
 import path from 'path';
-
-// The root directory where markdown files are stored
-const DOCS_DIRECTORY = 'C:/Users/corne/Desktop/clawd/second-brain';
+import { getDocumentsDirectory, fileExists } from '@/lib/utils';
 
 /**
  * GET handler to fetch a specific document by ID
@@ -23,18 +20,25 @@ export async function GET(
       );
     }
     
-    // Check if a file with this ID exists (with .md extension)
-    const filePath = path.join(DOCS_DIRECTORY, `${id}.md`);
+    // Get the documents directory
+    const docsDirectory = await getDocumentsDirectory();
     
-    if (!fs.existsSync(filePath)) {
+    // Check if a file with this ID exists (with .md extension)
+    const filePath = path.join(docsDirectory, `${id}.md`);
+    
+    // Use the native fs module directly for simplicity
+    if (!require('fs').existsSync(filePath)) {
       return NextResponse.json(
-        { error: 'Document not found' },
+        { 
+          error: 'Document not found',
+          path: filePath 
+        },
         { status: 404 }
       );
     }
     
     // Read the document content
-    const content = fs.readFileSync(filePath, 'utf8');
+    const content = require('fs').readFileSync(filePath, 'utf8');
     
     // Extract the title from the first line if it starts with #
     const lines = content.split('\n');
@@ -49,10 +53,12 @@ export async function GET(
       title,
       content,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error fetching document ${params.id}:`, error);
     return NextResponse.json(
-      { error: 'Failed to fetch document' },
+      { 
+        error: `Failed to fetch document: ${error.message}`
+      },
       { status: 500 }
     );
   }
