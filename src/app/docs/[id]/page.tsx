@@ -12,6 +12,7 @@ interface Document {
   id: string;
   title: string;
   content: string;
+  filename?: string;
 }
 
 export default function DocumentPage() {
@@ -21,6 +22,7 @@ export default function DocumentPage() {
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   
   useEffect(() => {
     // Fetch the document when the component mounts
@@ -28,19 +30,22 @@ export default function DocumentPage() {
       try {
         setLoading(true);
         setError(null);
+        setDebugInfo(null);
         
-        // The id from useParams is already URL-encoded
-        // We ensure it's properly formatted for the API request
-        const encodedId = encodeURIComponent(decodeURIComponent(id));
-        const response = await fetch(`/api/documents/${encodedId}`);
+        console.log('Fetching document with ID:', id);
         
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Error response:', errorData);
-          throw new Error(`Failed to fetch document: ${response.status}${errorData.error ? ` - ${errorData.error}` : ''}`);
-        }
+        // The ID from useParams is already encoded in the URL
+        // We don't need to encode it again
+        const response = await fetch(`/api/documents/${id}`);
         
         const data = await response.json();
+        
+        if (!response.ok) {
+          console.error('Error response:', data);
+          setDebugInfo(data);
+          throw new Error(`Failed to fetch document: ${response.status}${data.error ? ` - ${data.error}` : ''}`);
+        }
+        
         setDocument(data);
       } catch (err) {
         console.error('Error fetching document:', err);
@@ -83,6 +88,17 @@ export default function DocumentPage() {
       {error && (
         <div className="bg-red-900/30 border border-red-700 text-red-100 px-4 py-3 rounded">
           <p>{error}</p>
+          
+          {debugInfo && (
+            <div className="mt-4 text-xs">
+              <details>
+                <summary className="cursor-pointer">Debug Information</summary>
+                <pre className="mt-2 p-2 bg-black/30 rounded overflow-auto max-h-96">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
         </div>
       )}
       

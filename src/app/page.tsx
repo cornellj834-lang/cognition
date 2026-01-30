@@ -10,6 +10,12 @@ interface Document {
   path: string;
 }
 
+// Helper function to create a safe slug from document ID
+function createSlug(id: string) {
+  // This matches what the server expects
+  return id;
+}
+
 function SidebarContent({ documents }: { documents: Document[] }) {
   return (
     <div className="p-4">
@@ -26,7 +32,7 @@ function SidebarContent({ documents }: { documents: Document[] }) {
             {documents.map((doc) => (
               <li key={doc.id} className="mb-2">
                 <Link
-                  href={`/docs/${encodeURIComponent(doc.id)}`}
+                  href={`/docs/${createSlug(doc.id)}`}
                   className="block rounded-md px-3 py-2 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
                 >
                   {doc.title}
@@ -53,6 +59,7 @@ export default function Home() {
         setLoading(true);
         setError(null);
         
+        console.log('Fetching documents list');
         const response = await fetch('/api/documents');
         
         if (!response.ok) {
@@ -60,6 +67,7 @@ export default function Home() {
         }
         
         const data = await response.json();
+        console.log('Received documents:', data);
         setDocuments(data);
       } catch (err) {
         console.error('Error fetching documents:', err);

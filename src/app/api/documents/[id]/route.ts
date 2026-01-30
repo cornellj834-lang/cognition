@@ -12,8 +12,12 @@ export async function GET(
 ) {
   try {
     // Decode the ID from the URL
-    const id = decodeURIComponent(params.id);
-    console.log('Fetching document with ID:', id);
+    const rawId = params.id;
+    const id = decodeURIComponent(rawId);
+    
+    console.log('Raw ID from params:', rawId);
+    console.log('Decoded ID:', id);
+    console.log('Docs Directory:', DOCS_DIRECTORY);
     
     // Safety check: ensure the ID doesn't contain path traversal patterns
     if (id.includes('..')) {
@@ -28,18 +32,48 @@ export async function GET(
     console.log('All files in directory:', allFiles);
     
     // Find the file that matches the ID (case insensitive, ignoring extension)
-    const matchingFile = allFiles.find(file => 
-      file.toLowerCase().replace(/\.md$/, '') === id.toLowerCase() ||
-      file.replace(/\.md$/, '') === id
-    );
+    let matchingFile = null;
+    
+    for (const file of allFiles) {
+      // For direct comparison
+      if (file.replace(/\.md$/, '') === id) {
+        matchingFile = file;
+        break;
+      }
+      
+      // For case-insensitive comparison
+      if (file.toLowerCase().replace(/\.md$/, '') === id.toLowerCase()) {
+        matchingFile = file;
+        break;
+      }
+      
+      // For files with spaces that might not exactly match the URL encoding
+      const normalizedFileName = file.replace(/\.md$/, '').replace(/\s+/g, '-');
+      if (normalizedFileName === id || normalizedFileName.toLowerCase() === id.toLowerCase()) {
+        matchingFile = file;
+        break;
+      }
+      
+      // Try replacing hyphens with spaces in the ID
+      const idWithSpaces = id.replace(/-/g, ' ');
+      if (file.replace(/\.md$/, '') === idWithSpaces || 
+          file.toLowerCase().replace(/\.md$/, '') === idWithSpaces.toLowerCase()) {
+        matchingFile = file;
+        break;
+      }
+    }
     
     if (!matchingFile) {
       console.log('No matching file found for ID:', id);
       return NextResponse.json(
         { 
           error: 'Document not found',
-          id: id,
-          availableFiles: allFiles
+          requestedId: id,
+          rawId: rawId,
+          availableFiles: allFiles.map(file => ({
+            name: file,
+            id: file.replace(/\.md$/, '')
+          }))
         },
         { status: 404 }
       );
@@ -63,13 +97,14 @@ export async function GET(
       id,
       title,
       content,
+      filename: matchingFile,
     });
   } catch (error: any) {
     console.error(`Error fetching document ${params.id}:`, error);
     return NextResponse.json(
       { 
         error: `Failed to fetch document: ${error.message}`,
-        id: params.id
+        requestedId: params.id
       },
       { status: 500 }
     );

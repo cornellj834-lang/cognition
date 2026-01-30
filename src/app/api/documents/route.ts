@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import path from 'path';
-import { getDocumentsDirectory, safeReadFile } from '@/lib/utils';
+import fs from 'fs';
+import { DOCS_DIRECTORY } from '@/lib/utils';
 
 /**
  * GET handler to fetch all documents
@@ -8,12 +9,11 @@ import { getDocumentsDirectory, safeReadFile } from '@/lib/utils';
 export async function GET() {
   try {
     // Get the documents directory
-    const docsDirectory = await getDocumentsDirectory();
-    console.log('Reading directory:', docsDirectory);
+    console.log('Reading directory:', DOCS_DIRECTORY);
     
     // Get all files in the directory using the native fs module
     // This is a workaround for any issues with the promises API
-    const files = require('fs').readdirSync(docsDirectory);
+    const files = fs.readdirSync(DOCS_DIRECTORY);
     
     // Filter for markdown files only
     const markdownFiles = files.filter((file: string) => file.toLowerCase().endsWith('.md'));
@@ -28,8 +28,8 @@ export async function GET() {
       // For the title, read the first line of the file (usually the # title)
       let title = id; // Default title is the id
       
-      const filePath = path.join(docsDirectory, file);
-      const content = require('fs').readFileSync(filePath, 'utf8');
+      const filePath = path.join(DOCS_DIRECTORY, file);
+      const content = fs.readFileSync(filePath, 'utf8');
       
       if (content) {
         const firstLine = content.split('\n')[0];
@@ -44,6 +44,7 @@ export async function GET() {
         id,
         title,
         path: file,
+        slug: id // We'll use the same ID as the slug
       });
     }
     
