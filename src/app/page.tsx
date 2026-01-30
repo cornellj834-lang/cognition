@@ -26,7 +26,7 @@ function SidebarContent({ documents }: { documents: Document[] }) {
             {documents.map((doc) => (
               <li key={doc.id} className="mb-2">
                 <Link
-                  href={`/docs/${doc.id}`}
+                  href={`/docs/${encodeURIComponent(doc.id)}`}
                   className="block rounded-md px-3 py-2 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
                 >
                   {doc.title}

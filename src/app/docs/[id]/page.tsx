@@ -29,17 +29,22 @@ export default function DocumentPage() {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`/api/documents/${id}`);
+        // The id from useParams is already URL-encoded
+        // We ensure it's properly formatted for the API request
+        const encodedId = encodeURIComponent(decodeURIComponent(id));
+        const response = await fetch(`/api/documents/${encodedId}`);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch document: ${response.status}`);
+          const errorData = await response.json();
+          console.error('Error response:', errorData);
+          throw new Error(`Failed to fetch document: ${response.status}${errorData.error ? ` - ${errorData.error}` : ''}`);
         }
         
         const data = await response.json();
         setDocument(data);
       } catch (err) {
         console.error('Error fetching document:', err);
-        setError('Failed to load document. Please try again later.');
+        setError(`Failed to load document. ${err instanceof Error ? err.message : 'Please try again later.'}`);
       } finally {
         setLoading(false);
       }

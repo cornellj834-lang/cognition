@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
-import { getDocumentsDirectory, fileExists } from '@/lib/utils';
+import fs from 'fs';
+import { DOCS_DIRECTORY } from '@/lib/utils';
 
 /**
  * GET handler to fetch a specific document by ID
@@ -10,35 +11,45 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    // Decode the ID from the URL
+    const id = decodeURIComponent(params.id);
+    console.log('Fetching document with ID:', id);
     
-    // Safety check: ensure the ID doesn't contain invalid characters
-    if (id.includes('..') || id.includes('/') || id.includes('\\')) {
+    // Safety check: ensure the ID doesn't contain path traversal patterns
+    if (id.includes('..')) {
       return NextResponse.json(
         { error: 'Invalid document ID' },
         { status: 400 }
       );
     }
     
-    // Get the documents directory
-    const docsDirectory = await getDocumentsDirectory();
+    // List all files in the directory
+    const allFiles = fs.readdirSync(DOCS_DIRECTORY);
+    console.log('All files in directory:', allFiles);
     
-    // Check if a file with this ID exists (with .md extension)
-    const filePath = path.join(docsDirectory, `${id}.md`);
+    // Find the file that matches the ID (case insensitive, ignoring extension)
+    const matchingFile = allFiles.find(file => 
+      file.toLowerCase().replace(/\.md$/, '') === id.toLowerCase() ||
+      file.replace(/\.md$/, '') === id
+    );
     
-    // Use the native fs module directly for simplicity
-    if (!require('fs').existsSync(filePath)) {
+    if (!matchingFile) {
+      console.log('No matching file found for ID:', id);
       return NextResponse.json(
         { 
           error: 'Document not found',
-          path: filePath 
+          id: id,
+          availableFiles: allFiles
         },
         { status: 404 }
       );
     }
     
+    console.log('Found matching file:', matchingFile);
+    
     // Read the document content
-    const content = require('fs').readFileSync(filePath, 'utf8');
+    const filePath = path.join(DOCS_DIRECTORY, matchingFile);
+    const content = fs.readFileSync(filePath, 'utf8');
     
     // Extract the title from the first line if it starts with #
     const lines = content.split('\n');
@@ -57,7 +68,8 @@ export async function GET(
     console.error(`Error fetching document ${params.id}:`, error);
     return NextResponse.json(
       { 
-        error: `Failed to fetch document: ${error.message}`
+        error: `Failed to fetch document: ${error.message}`,
+        id: params.id
       },
       { status: 500 }
     );
