@@ -1,51 +1,112 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-// Mock data for now
-const documents = [
-  { id: 'daily-journal-2026-01-29', title: 'Daily Journal - 2026-01-29' },
-  { id: 'project-cognition', title: 'Project: Cognition (The Second Brain)' },
-];
+// Document interface
+interface Document {
+  id: string;
+  title: string;
+  path: string;
+}
 
-function SidebarContent() {
+// Helper function to create a safe slug from document ID
+function createSlug(id: string) {
+  // This matches what the server expects
+  return id;
+}
+
+function SidebarContent({ documents }: { documents: Document[] }) {
   return (
     <div className="p-4">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-white">Cognition</h1>
         <p className="text-sm text-gray-400">Your Second Brain</p>
       </div>
-      <nav>
-        <ul>
-          {documents.map((doc) => (
-            <li key={doc.id} className="mb-2">
-              <Link
-                href={`/docs/${doc.id}`}
-                className="block rounded-md px-3 py-2 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-              >
-                {doc.title}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      
+      {documents.length === 0 ? (
+        <div className="text-gray-400 text-sm">No documents found</div>
+      ) : (
+        <nav>
+          <ul>
+            {documents.map((doc) => (
+              <li key={doc.id} className="mb-2">
+                <Link
+                  href={`/docs/${createSlug(doc.id)}`}
+                  className="block rounded-md px-3 py-2 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+                >
+                  {doc.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </div>
   );
 }
 
 export default function Home() {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    // Fetch documents when the component mounts
+    const fetchDocuments = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('Fetching documents list');
+        const response = await fetch('/api/documents');
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch documents: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received documents:', data);
+        setDocuments(data);
+      } catch (err) {
+        console.error('Error fetching documents:', err);
+        setError('Failed to load documents. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDocuments();
+  }, []);
 
   return (
     <main className="flex h-screen bg-gray-900 text-gray-200 font-sans">
       {/* Static Sidebar for Desktop */}
       <aside className="hidden w-1/4 max-w-sm border-r border-gray-700 sm:block">
-        <SidebarContent />
+        {loading ? (
+          <div className="p-4">
+            <div className="mb-6">
+              <h1 className="text-xl font-bold text-white">Cognition</h1>
+              <p className="text-sm text-gray-400">Your Second Brain</p>
+            </div>
+            <p className="text-gray-400">Loading documents...</p>
+          </div>
+        ) : error ? (
+          <div className="p-4">
+            <div className="mb-6">
+              <h1 className="text-xl font-bold text-white">Cognition</h1>
+              <p className="text-sm text-gray-400">Your Second Brain</p>
+            </div>
+            <div className="text-red-400">{error}</div>
+          </div>
+        ) : (
+          <SidebarContent documents={documents} />
+        )}
       </aside>
 
       {/* Mobile Header & Overlay Container */}
-      <div className="sm:hidden">
+      <div className="flex flex-col w-full sm:hidden">
         <header className="flex w-full items-center justify-between border-b border-gray-700 p-4">
           <h1 className="text-lg font-bold text-white">Cognition</h1>
           <button
@@ -62,7 +123,25 @@ export default function Home() {
         {isSidebarOpen && (
           <div className="fixed inset-0 z-20 flex">
             <aside className="w-3/4 max-w-xs bg-gray-900 border-r border-gray-700">
-              <SidebarContent />
+              {loading ? (
+                <div className="p-4">
+                  <div className="mb-6">
+                    <h1 className="text-xl font-bold text-white">Cognition</h1>
+                    <p className="text-sm text-gray-400">Your Second Brain</p>
+                  </div>
+                  <p className="text-gray-400">Loading documents...</p>
+                </div>
+              ) : error ? (
+                <div className="p-4">
+                  <div className="mb-6">
+                    <h1 className="text-xl font-bold text-white">Cognition</h1>
+                    <p className="text-sm text-gray-400">Your Second Brain</p>
+                  </div>
+                  <div className="text-red-400">{error}</div>
+                </div>
+              ) : (
+                <SidebarContent documents={documents} />
+              )}
             </aside>
             <div className="flex-1 bg-black bg-opacity-50" onClick={() => setIsSidebarOpen(false)}></div>
           </div>
@@ -70,11 +149,25 @@ export default function Home() {
       </div>
 
       {/* Main Content Viewer */}
-      <section className="absolute top-16 left-0 w-full p-4 sm:relative sm:top-0 sm:flex-1 sm:p-8">
+      <section className="w-full flex-1 p-4 sm:p-8">
         <div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-gray-700">
           <div className="text-center">
-            <h2 className="text-lg font-semibold text-white sm:text-2xl">Select a document</h2>
-            <p className="mt-1 text-sm text-gray-400">Choose a document from the sidebar to view its content.</p>
+            {loading ? (
+              <p className="text-lg text-gray-400">Loading documents...</p>
+            ) : error ? (
+              <div className="text-red-400">
+                <h2 className="text-lg font-semibold sm:text-2xl">{error}</h2>
+                <p className="mt-1">Please try again later.</p>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-lg font-semibold text-white sm:text-2xl">Select a document</h2>
+                <p className="mt-1 text-sm text-gray-400">Choose a document from the sidebar to view its content.</p>
+                <p className="mt-4 text-sm text-gray-500">
+                  {documents.length} document{documents.length !== 1 ? 's' : ''} available
+                </p>
+              </>
+            )}
           </div>
         </div>
       </section>
